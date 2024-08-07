@@ -17,7 +17,6 @@ typedef struct Tile {
 
 typedef struct Player {
     bool isBlueTeam; // Blue & Red team
-    bool hasPlayed;
     bool hasWon;
 } Player;
 
@@ -29,6 +28,8 @@ static const int screenWidth = 800;
 static const int screenHeight = 450;
 
 static bool gameOver = false;
+static int currentPlayer = 0; // blue team starts
+static int totalMoves = 0; // if we reach the total moves, then the game is over
 
 // initialize these fields
 static Player player[MAX_PLAYERS] = { 0 };
@@ -72,23 +73,16 @@ void InitGame(void) {
 }
 
 void UpdateGame(void) {
-    static int currentPlayer = 0; // blue team starts
-    static int totalMoves = 0; // if we reach the total moves, then the game is over
     if (!gameOver) {
         if (UpdatePlayer(currentPlayer)) {
             
 
-            // game ends if all tiles are filled
-            if (totalMoves  == MAX_TILES) {
+            // game ends if all tiles are filled or if someone wins
+            if (totalMoves  == MAX_TILES || checkWin()) {
                 gameOver = true;
             }
-            // 3 ways to win: diagonal / horizontal / vertical
-            // horizontal
-            checkWin();
 
-
-
-
+            totalMoves ++; // one turn
             currentPlayer = (currentPlayer + 1) % MAX_PLAYERS;
         }
 
@@ -110,8 +104,8 @@ static void DrawGame(void) {
 }
 
 static void InitPlayer(void) {
-    player[0] = (Player){.isBlueTeam = true, .hasPlayed = false , .hasWon = false};
-    player[1] = (Player){.isBlueTeam = false, .hasPlayed = false , .hasWon = false};
+    player[0] = (Player){.isBlueTeam = true, .hasWon = false};
+    player[1] = (Player){.isBlueTeam = false, .hasWon = false};
 }
 
 static void InitBoard(void) {
@@ -127,39 +121,57 @@ static void InitBoard(void) {
 }
 
 static bool checkWin(void) {
-
     // check horizontally
-    for (int i = 0; i < ROW; i ++) {
-        if (
-            tile[i][0].playerIndex == tile[i][1].playerIndex && tile[i][0].playerIndex == tile[i][2].playerIndex
-        ) 
-        player[tile[i][0].playerIndex].hasWon = true;
-        return true; 
+    for (int i = 0; i < ROW; i++) {
+        if (tile[i][0].playerIndex != -1 &&
+            tile[i][0].playerIndex == tile[i][1].playerIndex && 
+            tile[i][0].playerIndex == tile[i][2].playerIndex) 
+        {
+            player[tile[i][0].playerIndex].hasWon = true;
+            return true; 
+        }
     }
 
     // check vertically
-    for (int i = 0; i < COL; i ++) {
-        if (
-            tile[0][i].playerIndex == tile[1][i].playerIndex && tile[0][i].playerIndex == tile[2][i].playerIndex
-        )
-        player[tile[i][0].playerIndex].hasWon = true; 
-        return true; 
+    for (int i = 0; i < COL; i++) {
+        if (tile[0][i].playerIndex != -1 &&
+            tile[0][i].playerIndex == tile[1][i].playerIndex && 
+            tile[0][i].playerIndex == tile[2][i].playerIndex)
+        {
+            player[tile[0][i].playerIndex].hasWon = true; 
+            return true; 
+        }
     }
 
     // check diagonals
-    if (
-        (tile[0][0].playerIndex == tile[1][1].playerIndex && tile[0][0].playerIndex == tile[2][2].playerIndex) ||
-        (tile[0][2].playerIndex == tile[1][1].playerIndex && tile[1][1].playerIndex == tile[2][0].playerIndex) 
-    )
-        player[tile[1][1].playerIndex].hasWon = true;
-        return true;
+    if (tile[1][1].playerIndex != -1) {
+        if ((tile[0][0].playerIndex == tile[1][1].playerIndex && tile[1][1].playerIndex == tile[2][2].playerIndex) ||
+            (tile[0][2].playerIndex == tile[1][1].playerIndex && tile[1][1].playerIndex == tile[2][0].playerIndex))
+        {
+            player[tile[1][1].playerIndex].hasWon = true;
+            return true;
+        }
+    }
     
     return false;
-
 }
 
 
 static bool UpdatePlayer(int playerTurn) {
+    Vector2 mousePosition = GetMousePosition();
+
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        for (int i = 0; i < ROW; i ++) {
+            for (int j = 0; j < COL; j ++) {
+                if (CheckCollisionPointRec(mousePosition, tile[i][j].square) && tile[i][j].playerIndex == -1) {
+                    tile[i][j].playerIndex = playerTurn;
+                    tile[i][j].color = player[playerTurn].isBlueTeam ? BLUE : RED;
+                    return true;
+                }
+            }
+        }
+    }
+    
     return false;
 }
 
