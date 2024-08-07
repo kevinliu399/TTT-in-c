@@ -3,6 +3,7 @@
 
 #define ROW 3
 #define COL 3
+#define MAX_TILES 9 
 #define MAX_PLAYERS 2
 
 /************************
@@ -11,7 +12,7 @@
 typedef struct Tile {
     Rectangle square;
     Color color;
-    bool isEmpty;
+    int playerIndex; // -1 for empty, 0 for player, 1 for player 2
 } Tile;
 
 typedef struct Player {
@@ -72,9 +73,21 @@ void InitGame(void) {
 
 void UpdateGame(void) {
     static int currentPlayer = 0; // blue team starts
+    static int totalMoves = 0; // if we reach the total moves, then the game is over
     if (!gameOver) {
         if (UpdatePlayer(currentPlayer)) {
-            // check for wincon
+            
+
+            // game ends if all tiles are filled
+            if (totalMoves  == MAX_TILES) {
+                gameOver = true;
+            }
+            // 3 ways to win: diagonal / horizontal / vertical
+            // horizontal
+            checkWin();
+
+
+
 
             currentPlayer = (currentPlayer + 1) % MAX_PLAYERS;
         }
@@ -90,7 +103,9 @@ static void UpdateDrawFrame(void) {
 static void DrawGame(void) {
     BeginDrawing();
     ClearBackground(RAYWHITE);
-    // TODO: draw game board
+    if (!gameOver) {
+
+    }
     EndDrawing();
 }
 
@@ -105,11 +120,44 @@ static void InitBoard(void) {
             tile[i][j] = (Tile) {
                 .square = (Rectangle){ j * (screenWidth / 3.0f), i * (screenHeight / 3.0f), screenWidth / 3.0f, screenHeight / 3.0f },
                 .color = LIGHTGRAY,
-                .isEmpty = true,
+                .playerIndex = -1, // -1 means empty
             };
         }
     }
 }
+
+static bool checkWin(void) {
+
+    // check horizontally
+    for (int i = 0; i < ROW; i ++) {
+        if (
+            tile[i][0].playerIndex == tile[i][1].playerIndex && tile[i][0].playerIndex == tile[i][2].playerIndex
+        ) 
+        player[tile[i][0].playerIndex].hasWon = true;
+        return true; 
+    }
+
+    // check vertically
+    for (int i = 0; i < COL; i ++) {
+        if (
+            tile[0][i].playerIndex == tile[1][i].playerIndex && tile[0][i].playerIndex == tile[2][i].playerIndex
+        )
+        player[tile[i][0].playerIndex].hasWon = true; 
+        return true; 
+    }
+
+    // check diagonals
+    if (
+        (tile[0][0].playerIndex == tile[1][1].playerIndex && tile[0][0].playerIndex == tile[2][2].playerIndex) ||
+        (tile[0][2].playerIndex == tile[1][1].playerIndex && tile[1][1].playerIndex == tile[2][0].playerIndex) 
+    )
+        player[tile[1][1].playerIndex].hasWon = true;
+        return true;
+    
+    return false;
+
+}
+
 
 static bool UpdatePlayer(int playerTurn) {
     return false;
