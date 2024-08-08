@@ -20,7 +20,7 @@ typedef struct Player
 {
     bool isBlueTeam; // Blue & Red team
     bool hasWon;
-    Rectangle profile; 
+    Rectangle profile;
 } Player;
 
 /*******************
@@ -100,7 +100,7 @@ void UpdateGame(void)
 
 static void UpdateDrawFrame(void)
 {
-    updateGame();
+    UpdateGame();
     DrawGame();
 }
 
@@ -108,28 +108,53 @@ static void DrawGame(void)
 {
     BeginDrawing();
     ClearBackground(RAYWHITE);
-    if (!gameOver)
-    {   
-        // Draw Tiles
-        if (hoveredTile.x != -1 && hoveredTile.y != -1) {
-            DrawRectangleLinesEx(tile[(int)hoveredTile.x][(int)hoveredTile.y].square, 2, BLACK);
-        }
 
-        // Player profile
-        DrawRectangleRec(player[0].profile, BLUE);
-        DrawRectangleRec(player[1].profile, RED);
-
-        DrawRectangleLinesEx(player[0].profile, 2, BLACK);
-        DrawRectangleLinesEx(player[1].profile, 2, BLACK);
-
-        if (currentPlayer == 0) {
-            DrawRectangleLinesEx(player[0].profile, 4, GOLD);
-        } else {
-            DrawRectangleLinesEx(player[1].profile, 4, GOLD);
-        }
-
-
+    // Draw Tiles
+    for (int i = 1; i < 3; i++)
+    {
+        DrawLineEx((Vector2){screenWidth / 3 * i, 0}, (Vector2){screenWidth / 3 * i, screenHeight}, 5, BLACK);
+        DrawLineEx((Vector2){0, screenHeight / 3 * i}, (Vector2){screenWidth, screenHeight / 3 * i}, 5, BLACK);
     }
+
+    for (int i = 0; i < ROW; i++)
+    {
+        for (int j = 0; j < COL; j++)
+        {
+            if (tile[i][j].playerIndex != -1)
+            {
+                Player playerTile = player[tile[i][j].playerIndex];
+                Color tileColor = playerTile.isBlueTeam ? BLUE : RED;
+                DrawRectangle(
+                    (int)tile[i][j].square.x,
+                    (int)tile[i][j].square.x,
+                    (int)tile[i][j].square.x,
+                    (int)tile[i][j].square.x,
+                    tileColor);
+            }
+        }
+    }
+
+    if (hoveredTile.x != -1 && hoveredTile.y != -1)
+    {
+        DrawRectangleLinesEx(tile[(int)hoveredTile.x][(int)hoveredTile.y].square, 2, BLACK);
+    }
+
+    // Player profile
+    DrawRectangleRec(player[0].profile, BLUE);
+    DrawRectangleRec(player[1].profile, RED);
+
+    DrawRectangleLinesEx(player[0].profile, 2, BLACK);
+    DrawRectangleLinesEx(player[1].profile, 2, BLACK);
+
+    if (currentPlayer == 0)
+    {
+        DrawRectangleLinesEx(player[0].profile, 4, GOLD);
+    }
+    else
+    {
+        DrawRectangleLinesEx(player[1].profile, 4, GOLD);
+    }
+
     EndDrawing();
 }
 
@@ -138,9 +163,8 @@ static void InitPlayer(void)
     float squareSize = 30.0f;
     float margin = 10.0f;
 
-    player[0] = (Player){.isBlueTeam = true, .hasWon = false, .profile = (Rectangle) { margin, margin, squareSize, squareSize }};
-    player[1] = (Player){.isBlueTeam = false, .hasWon = false, .profile = (Rectangle) {margin, margin, squareSize, squareSize }};
-
+    player[0] = (Player){.isBlueTeam = true, .hasWon = false, .profile = (Rectangle){margin, margin, squareSize, squareSize}};
+    player[1] = (Player){.isBlueTeam = false, .hasWon = false, .profile = (Rectangle){margin, margin, squareSize, squareSize}};
 }
 
 static void InitBoard(void)
@@ -212,7 +236,7 @@ static bool UpdatePlayer(int playerTurn)
             {
                 hoveredTile.x = i;
                 hoveredTile.y = j;
-                
+
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && tile[i][j].playerIndex == -1)
                 {
                     tile[i][j].playerIndex = playerTurn;
