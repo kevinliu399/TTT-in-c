@@ -1,12 +1,14 @@
 #include "raylib.h"
 #include <stdbool.h>
 #include <string.h>
-#include <stdio.h>
 
 #define ROW 3
 #define COL 3
 #define MAX_TILES 9
 #define MAX_PLAYERS 2
+#define HEADER_HEIGHT 60
+#define HEADER_BUTTON_WIDTH 40
+#define HEADER_BUTTON_HEIGHT 40
 
 /************************
  * Types and definition *
@@ -25,12 +27,14 @@ typedef struct Player
     Rectangle profile;
 } Player;
 
-/*******************
- *  Global Variables Declarations
- *****************/
+/**********************************
+ *  Global Variables Declarations *
+ **********************************/
 
 static const int screenWidth = 800;
-static const int screenHeight = 450;
+static const int screenHeight = 510;
+static const int gameBoardTop = HEADER_HEIGHT;
+static const int gameBoardHeight = 450;
 
 static bool gameOver = false;
 static int currentPlayer = 0; // blue team starts
@@ -38,11 +42,14 @@ static int totalMoves = 0;    // if we reach the total moves, then the game is o
 
 static Vector2 hoveredTile = {-1, -1};
 
-// initialize these fields
 static Player player[MAX_PLAYERS] = {0};
 static Tile tile[ROW][COL] = {0};
+static Rectangle headerButton = {0};
 
-// Module Declaration
+/***********************
+ *  Module Declaration *
+ ***********************/
+
 static void InitGame(void);
 static void UpdateGame(void);
 static void DrawGame(void);
@@ -53,7 +60,9 @@ static bool UpdatePlayer(int playerTurn);
 static void InitBoard(void);
 static bool checkWin(void);
 
-// Program main entry point
+/***********
+ * Program *
+ ***********/
 
 int main(void)
 {
@@ -72,13 +81,18 @@ int main(void)
     return 0;
 }
 
-// Module functions definitions
-
 void InitGame(void)
 {
 
     InitBoard();
     InitPlayers();
+
+    // Temporary
+    headerButton = (Rectangle){
+        screenWidth - HEADER_BUTTON_WIDTH - 10,
+        10,
+        HEADER_BUTTON_WIDTH,
+        HEADER_BUTTON_HEIGHT};
 }
 
 void UpdateGame(void)
@@ -89,13 +103,22 @@ void UpdateGame(void)
         {
 
             // game ends if all tiles are filled or if someone wins
-            if (totalMoves == MAX_TILES - 1|| checkWin())
+            if (totalMoves == MAX_TILES - 1 || checkWin())
             {
                 gameOver = true;
             }
 
             totalMoves++; // one turn
             currentPlayer = (currentPlayer + 1) % MAX_PLAYERS;
+        }
+    }
+    else
+    {
+        if (IsKeyPressed(KEY_ENTER))
+        {
+            InitGame();
+            gameOver = false;
+            totalMoves = 0;
         }
     }
 }
@@ -111,13 +134,36 @@ static void DrawGame(void)
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-    // Draw Tiles
+    // Draw header
+    DrawRectangle(0, 0, screenWidth, HEADER_HEIGHT, LIGHTGRAY);
+    DrawRectangleRec(headerButton, GRAY);
+    DrawRectangleLinesEx(headerButton, 2, BLACK);
+    DrawText("AI", headerButton.x + 10, headerButton.y + 10, 20, BLACK);
+
+    float squareSize = 40.0f;
+    float margin = 10.0f;
+    DrawRectangle(margin, margin, squareSize, squareSize, BLUE);
+    DrawRectangle(margin + squareSize + margin, margin, squareSize, squareSize, RED);
+    
+    if (currentPlayer == 0)
+        DrawRectangleLinesEx((Rectangle){margin, margin, squareSize, squareSize}, 3, GOLD);
+    else
+        DrawRectangleLinesEx((Rectangle){margin + squareSize + margin, margin, squareSize, squareSize}, 3, GOLD);
+
+    // Draw game board
     for (int i = 1; i < 3; i++)
     {
-        DrawLineEx((Vector2){screenWidth / 3 * i, 0}, (Vector2){screenWidth / 3 * i, screenHeight}, 5, BLACK);
-        DrawLineEx((Vector2){0, screenHeight / 3 * i}, (Vector2){screenWidth, screenHeight / 3 * i}, 5, BLACK);
+        DrawLineEx(
+            (Vector2){screenWidth / 3 * i, gameBoardTop},
+            (Vector2){screenWidth / 3 * i, screenHeight},
+            5, BLACK);
+        DrawLineEx(
+            (Vector2){0, gameBoardTop + gameBoardHeight / 3 * i},
+            (Vector2){screenWidth, gameBoardTop + gameBoardHeight / 3 * i},
+            5, BLACK);
     }
 
+    // Draw tiles
     for (int i = 0; i < ROW; i++)
     {
         for (int j = 0; j < COL; j++)
@@ -136,38 +182,22 @@ static void DrawGame(void)
         }
     }
 
-    if (hoveredTile.x != -1 && hoveredTile.y != -1)
+    if (!gameOver)
     {
-        DrawRectangleLinesEx(tile[(int)hoveredTile.x][(int)hoveredTile.y].square, 6, DARKGRAY);
-    }
-
-    // Player profile
-    DrawRectangleRec(player[0].profile, BLUE);
-    DrawRectangleRec(player[1].profile, RED);
-
-    DrawRectangleLinesEx(player[0].profile, 2, BLACK);
-    DrawRectangleLinesEx(player[1].profile, 2, BLACK);
-
-    if (currentPlayer == 0)
-    {
-        DrawRectangleLinesEx(player[0].profile, 4, GOLD);
+        if (hoveredTile.x != -1 && hoveredTile.y != -1)
+        {
+            DrawRectangleLinesEx(tile[(int)hoveredTile.x][(int)hoveredTile.y].square, 6, DARKGRAY);
+        }
     }
     else
     {
-        DrawRectangleLinesEx(player[1].profile, 4, GOLD);
-    }
+        const char *resultText;
+        if (player[0].hasWon) resultText = "Blue team has won!";
+        else if (player[1].hasWon) resultText = "Red team has won!";
+        else resultText = "Tie game!";
 
-    if (gameOver)
-    {
-        const char* resultText;
-        if (player[0].hasWon)
-            resultText = "Blue team has won!";
-        else if (player[1].hasWon)
-            resultText = "Red team has won!";
-        else
-            resultText = "Tie game!";
-
-        DrawText(resultText, screenWidth / 2 - MeasureText(resultText, 40) / 2, screenHeight / 2 - 20, 40, BLACK);
+        DrawText(resultText, screenWidth / 2 - MeasureText(resultText, 40) / 2, gameBoardTop + gameBoardHeight / 2 - 50, 40, BLACK);
+        DrawText("PRESS [ENTER] TO PLAY AGAIN", screenWidth / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20)/2, gameBoardTop + gameBoardHeight / 2, 20, DARKGRAY);
     }
 
     EndDrawing();
@@ -181,13 +211,11 @@ static void InitPlayers(void)
     player[0] = (Player){
         .isBlueTeam = true,
         .hasWon = false,
-        .profile = (Rectangle){margin, margin, squareSize, squareSize}
-    };
+        .profile = (Rectangle){margin, margin, squareSize, squareSize}};
     player[1] = (Player){
         .isBlueTeam = false,
         .hasWon = false,
-        .profile = (Rectangle){margin + squareSize + 2 * margin, margin, squareSize, squareSize}
-    };
+        .profile = (Rectangle){margin + squareSize + 2 * margin, margin, squareSize, squareSize}};
 }
 
 static void InitBoard(void)
@@ -197,7 +225,11 @@ static void InitBoard(void)
         for (int j = 0; j < COL; j++)
         {
             tile[i][j] = (Tile){
-                .square = (Rectangle){j * (screenWidth / 3.0f), i * (screenHeight / 3.0f), screenWidth / 3.0f, screenHeight / 3.0f},
+                .square = (Rectangle){
+                    j * (screenWidth / 3.0f),
+                    gameBoardTop + i * (gameBoardHeight / 3.0f),
+                    screenWidth / 3.0f,
+                    gameBoardHeight / 3.0f},
                 .color = LIGHTGRAY,
                 .playerIndex = -1, // -1 means empty
             };
@@ -251,24 +283,34 @@ static bool UpdatePlayer(int playerTurn)
     hoveredTile.x = -1;
     hoveredTile.y = -1;
 
-    for (int i = 0; i < ROW; i++)
-    {
-        for (int j = 0; j < COL; j++)
-        {
-            if (CheckCollisionPointRec(mousePosition, tile[i][j].square))
-            {
-                hoveredTile.x = i;
-                hoveredTile.y = j;
+    if (mousePosition.y >= gameBoardTop && mousePosition.y <= screenHeight) {
+        // Adjust mouse position for game board
+        mousePosition.y -= gameBoardTop;
 
-                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && tile[i][j].playerIndex == -1)
+        for (int i = 0; i < ROW; i++)
+        {
+            for (int j = 0; j < COL; j++)
+            {
+                if (CheckCollisionPointRec(mousePosition, (Rectangle){
+                                                            tile[i][j].square.x,
+                                                            tile[i][j].square.y - gameBoardTop,
+                                                            tile[i][j].square.width,
+                                                            tile[i][j].square.height}))
                 {
-                    tile[i][j].playerIndex = playerTurn;
-                    tile[i][j].color = player[playerTurn].isBlueTeam ? BLUE : RED;
-                    return true;
+                    hoveredTile.x = i;
+                    hoveredTile.y = j;
+
+                    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && tile[i][j].playerIndex == -1)
+                    {
+                        tile[i][j].playerIndex = playerTurn;
+                        tile[i][j].color = player[playerTurn].isBlueTeam ? BLUE : RED;
+                        return true;
+                    }
                 }
             }
         }
     }
+
 
     return false;
 }
