@@ -1,5 +1,7 @@
 #include "raylib.h"
 #include <stdbool.h>
+#include <string.h>
+#include <stdio.h>
 
 #define ROW 3
 #define COL 3
@@ -49,6 +51,7 @@ static void UpdateDrawFrame(void);
 static void InitPlayers(void);
 static bool UpdatePlayer(int playerTurn);
 static void InitBoard(void);
+static bool checkWin(void);
 
 // Program main entry point
 
@@ -64,7 +67,6 @@ int main(void)
         UpdateDrawFrame(); // Update and Draw
     }
 
-    UnloadGame();  // unload data
     CloseWindow(); // close window and opengl
 
     return 0;
@@ -87,7 +89,7 @@ void UpdateGame(void)
         {
 
             // game ends if all tiles are filled or if someone wins
-            if (totalMoves == MAX_TILES || checkWin())
+            if (totalMoves == MAX_TILES - 1|| checkWin())
             {
                 gameOver = true;
             }
@@ -126,9 +128,9 @@ static void DrawGame(void)
                 Color tileColor = playerTile.isBlueTeam ? BLUE : RED;
                 DrawRectangle(
                     (int)tile[i][j].square.x,
-                    (int)tile[i][j].square.x,
-                    (int)tile[i][j].square.x,
-                    (int)tile[i][j].square.x,
+                    (int)tile[i][j].square.y,
+                    (int)tile[i][j].square.width,
+                    (int)tile[i][j].square.height,
                     tileColor);
             }
         }
@@ -136,7 +138,7 @@ static void DrawGame(void)
 
     if (hoveredTile.x != -1 && hoveredTile.y != -1)
     {
-        DrawRectangleLinesEx(tile[(int)hoveredTile.x][(int)hoveredTile.y].square, 2, BLACK);
+        DrawRectangleLinesEx(tile[(int)hoveredTile.x][(int)hoveredTile.y].square, 6, DARKGRAY);
     }
 
     // Player profile
@@ -155,16 +157,37 @@ static void DrawGame(void)
         DrawRectangleLinesEx(player[1].profile, 4, GOLD);
     }
 
+    if (gameOver)
+    {
+        const char* resultText;
+        if (player[0].hasWon)
+            resultText = "Blue team has won!";
+        else if (player[1].hasWon)
+            resultText = "Red team has won!";
+        else
+            resultText = "Tie game!";
+
+        DrawText(resultText, screenWidth / 2 - MeasureText(resultText, 40) / 2, screenHeight / 2 - 20, 40, BLACK);
+    }
+
     EndDrawing();
 }
 
-static void InitPlayer(void)
+static void InitPlayers(void)
 {
-    float squareSize = 30.0f;
+    float squareSize = 50.0f;
     float margin = 10.0f;
 
-    player[0] = (Player){.isBlueTeam = true, .hasWon = false, .profile = (Rectangle){margin, margin, squareSize, squareSize}};
-    player[1] = (Player){.isBlueTeam = false, .hasWon = false, .profile = (Rectangle){margin, margin, squareSize, squareSize}};
+    player[0] = (Player){
+        .isBlueTeam = true,
+        .hasWon = false,
+        .profile = (Rectangle){margin, margin, squareSize, squareSize}
+    };
+    player[1] = (Player){
+        .isBlueTeam = false,
+        .hasWon = false,
+        .profile = (Rectangle){margin + squareSize + 2 * margin, margin, squareSize, squareSize}
+    };
 }
 
 static void InitBoard(void)
@@ -248,9 +271,4 @@ static bool UpdatePlayer(int playerTurn)
     }
 
     return false;
-}
-
-static void UnloadGame(void)
-{
-    // TODO
 }
