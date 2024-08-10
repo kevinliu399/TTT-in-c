@@ -9,6 +9,8 @@
 #define HEADER_HEIGHT 60
 #define HEADER_BUTTON_WIDTH 40
 #define HEADER_BUTTON_HEIGHT 40
+#define max(A, B) ((A) > (B) ? (A) : (B))
+#define min(A, B) ((A) < (B) ? (A) : (B))
 
 /************************
  * Types and definition *
@@ -17,7 +19,7 @@ typedef struct Tile
 {
     Rectangle square;
     Color color;
-    int playerIndex; // -1 for empty, 0 for player, 1 for player 2
+    int playerIndex; // -1 for empty, 0 for blue, 1 for red
 } Tile;
 
 typedef struct Player
@@ -25,7 +27,15 @@ typedef struct Player
     bool isBlueTeam; // Blue & Red team
     bool hasWon;
     Rectangle profile;
+    bool isAI;
 } Player;
+
+enum Score
+{
+    BLUE_WIN = -1,
+    TIED = 0,
+    RED_WIN = 1
+};
 
 /**********************************
  *  Global Variables Declarations *
@@ -39,6 +49,7 @@ static const int gameBoardHeight = 450;
 static bool gameOver = false;
 static int currentPlayer = 0; // blue team starts
 static int totalMoves = 0;    // if we reach the total moves, then the game is over
+enum Score score;
 
 static Vector2 hoveredTile = {-1, -1};
 
@@ -59,6 +70,9 @@ static void InitPlayers(void);
 static bool UpdatePlayer(int playerTurn);
 static void InitBoard(void);
 static bool checkWin(void);
+
+Vector2 findBestMove(Tile board[3][3]);
+int minimax(Tile board[3][3], int depth, bool isMaximizing);
 
 /***********
  * Program *
@@ -144,7 +158,7 @@ static void DrawGame(void)
     float margin = 10.0f;
     DrawRectangle(margin, margin, squareSize, squareSize, BLUE);
     DrawRectangle(margin + squareSize + margin, margin, squareSize, squareSize, RED);
-    
+
     if (currentPlayer == 0)
         DrawRectangleLinesEx((Rectangle){margin, margin, squareSize, squareSize}, 3, GOLD);
     else
@@ -192,12 +206,15 @@ static void DrawGame(void)
     else
     {
         const char *resultText;
-        if (player[0].hasWon) resultText = "Blue team has won!";
-        else if (player[1].hasWon) resultText = "Red team has won!";
-        else resultText = "Tie game!";
+        if (player[0].hasWon)
+            resultText = "Blue team has won!";
+        else if (player[1].hasWon)
+            resultText = "Red team has won!";
+        else
+            resultText = "Tie game!";
 
         DrawText(resultText, screenWidth / 2 - MeasureText(resultText, 40) / 2, gameBoardTop + gameBoardHeight / 2 - 50, 40, BLACK);
-        DrawText("PRESS [ENTER] TO PLAY AGAIN", screenWidth / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20)/2, gameBoardTop + gameBoardHeight / 2, 20, DARKGRAY);
+        DrawText("PRESS [ENTER] TO PLAY AGAIN", screenWidth / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, gameBoardTop + gameBoardHeight / 2, 20, DARKGRAY);
     }
 
     EndDrawing();
@@ -211,11 +228,14 @@ static void InitPlayers(void)
     player[0] = (Player){
         .isBlueTeam = true,
         .hasWon = false,
-        .profile = (Rectangle){margin, margin, squareSize, squareSize}};
+        .profile = (Rectangle){margin, margin, squareSize, squareSize},
+        .isAI = false};
+
     player[1] = (Player){
         .isBlueTeam = false,
         .hasWon = false,
-        .profile = (Rectangle){margin + squareSize + 2 * margin, margin, squareSize, squareSize}};
+        .profile = (Rectangle){margin + squareSize + 2 * margin, margin, squareSize, squareSize},
+        .isAI = false};
 }
 
 static void InitBoard(void)
@@ -283,7 +303,8 @@ static bool UpdatePlayer(int playerTurn)
     hoveredTile.x = -1;
     hoveredTile.y = -1;
 
-    if (mousePosition.y >= gameBoardTop && mousePosition.y <= screenHeight) {
+    if (mousePosition.y >= gameBoardTop && mousePosition.y <= screenHeight)
+    {
         // Adjust mouse position for game board
         mousePosition.y -= gameBoardTop;
 
@@ -292,10 +313,10 @@ static bool UpdatePlayer(int playerTurn)
             for (int j = 0; j < COL; j++)
             {
                 if (CheckCollisionPointRec(mousePosition, (Rectangle){
-                                                            tile[i][j].square.x,
-                                                            tile[i][j].square.y - gameBoardTop,
-                                                            tile[i][j].square.width,
-                                                            tile[i][j].square.height}))
+                                                              tile[i][j].square.x,
+                                                              tile[i][j].square.y - gameBoardTop,
+                                                              tile[i][j].square.width,
+                                                              tile[i][j].square.height}))
                 {
                     hoveredTile.x = i;
                     hoveredTile.y = j;
@@ -311,6 +332,102 @@ static bool UpdatePlayer(int playerTurn)
         }
     }
 
-
     return false;
+}
+
+int minimax(Tile board[3][3], int depth, bool isMaximizing)
+{
+
+    // Terminal State
+    if (checkWin())
+    {
+        if (player[0].hasWon)
+            return -10 + depth; // Human wins
+        if (player[1].hasWon)
+            return 10 - depth; // AI wins
+    }
+
+    bool isDraw = true;
+    for (int i = 0; i < ROW; i++)
+    {
+        for (int j = 0; j < COL; j++)
+        {
+            if (board[i][j].playerIndex == -1)
+            {
+                isDraw = false;
+                break;
+            }
+        }
+        if (!isDraw)
+            break;
+    }
+
+    if (isDraw)
+        return 0;
+
+    if (isMaximizing)
+    {
+        int bestScore = -INFINITY;
+        for (int i = 0; i < ROW; i++)
+        {
+            for (int j = 0; j < COL; j++)
+            {
+                if (board[i][j].playerIndex == -1)
+                {
+                    board[i][j].playerIndex = 1; // AI/Red Team
+                    int score = minimax(board, depth + 1, false);
+                    board[i][j].playerIndex = -1; // reset the board
+                    bestScore = max(score, bestScore);
+                }
+            }
+        }
+        return bestScore;
+    }
+
+    // Minimizing -> Human
+    else
+    {
+        int bestScore = INFINITY;
+        for (int i = 0; i < ROW; i++)
+        {
+            for (int j = 0; j < COL; j++)
+            {
+                if (board[i][j].playerIndex == -1)
+                {
+                    board[i][j].playerIndex = 0; // Human/Blue Team
+                    int score = minimax(board, depth + 1, false);
+                    board[i][j].playerIndex = -1; // reset the tile
+                    bestScore = min(score, bestScore);
+                }
+            }
+        }
+        return bestScore;
+    }
+}
+
+Vector2 findBestMove(Tile board[3][3])
+{
+    int bestScore = -INFINITY;
+    Vector2 bestMove = {-1, -1};
+
+    for (int i = 0; i < ROW; i++)
+    {
+        for (int j = 0; j < COL; j++)
+        {
+            if (board[i][j].playerIndex == -1)
+            {
+                board[i][j].playerIndex = 1; // AI
+                int score = minimax(board, 0, false);
+                board[i][j].playerIndex = -1;
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestMove.x = i;
+                    bestMove.y = j;
+                }
+            }
+        }
+    }
+
+    return bestMove;
 }
