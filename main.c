@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 
 #define ROW 3
 #define COL 3
@@ -49,10 +50,10 @@ static const int gameBoardHeight = 450;
 static bool gameOver = false;
 static int currentPlayer = 0; // blue team starts
 static int totalMoves = 0;    // if we reach the total moves, then the game is over
+static bool AiPlaying = false;
 enum Score score;
 
 static Vector2 hoveredTile = {-1, -1};
-
 static Player player[MAX_PLAYERS] = {0};
 static Tile tile[ROW][COL] = {0};
 static Rectangle headerButton = {0};
@@ -73,6 +74,7 @@ static bool checkWin(void);
 
 Vector2 findBestMove(Tile board[3][3]);
 int minimax(Tile board[3][3], int depth, bool isMaximizing);
+static bool MakeAIMove(int playerTurn);
 
 /***********
  * Program *
@@ -101,7 +103,6 @@ void InitGame(void)
     InitBoard();
     InitPlayers();
 
-    // Temporary
     headerButton = (Rectangle){
         screenWidth - HEADER_BUTTON_WIDTH - 10,
         10,
@@ -135,6 +136,14 @@ void UpdateGame(void)
             totalMoves = 0;
         }
     }
+
+    if (CheckCollisionPointRec(GetMousePosition(), headerButton)) {
+        AiPlaying = !AiPlaying;
+        InitGame();
+        gameOver = false;
+        totalMoves = 0;
+        currentPlayer = 0;
+    }
 }
 
 static void UpdateDrawFrame(void)
@@ -151,8 +160,13 @@ static void DrawGame(void)
     // Draw header
     DrawRectangle(0, 0, screenWidth, HEADER_HEIGHT, LIGHTGRAY);
     DrawRectangleRec(headerButton, GRAY);
-    DrawRectangleLinesEx(headerButton, 2, BLACK);
     DrawText("AI", headerButton.x + 10, headerButton.y + 10, 20, BLACK);
+
+    if (AiPlaying) {
+        DrawRectangleLinesEx(headerButton, 2, GOLD);
+    } else {
+        DrawRectangleLinesEx(headerButton, 2, BLACK);
+    }
 
     float squareSize = 40.0f;
     float margin = 10.0f;
@@ -229,13 +243,15 @@ static void InitPlayers(void)
         .isBlueTeam = true,
         .hasWon = false,
         .profile = (Rectangle){margin, margin, squareSize, squareSize},
-        .isAI = false};
-
+        .isAI = false
+    };
+    
     player[1] = (Player){
         .isBlueTeam = false,
         .hasWon = false,
-        .profile = (Rectangle){margin + squareSize + 2 * margin, margin, squareSize, squareSize},
-        .isAI = false};
+        .profile = (Rectangle){margin + squareSize + margin, margin, squareSize, squareSize},
+        .isAI = AiPlaying
+    };
 }
 
 static void InitBoard(void)
@@ -299,6 +315,11 @@ static bool checkWin(void)
 
 static bool UpdatePlayer(int playerTurn)
 {
+    if (player[playerTurn].isAI)
+    {
+        return MakeAIMove(playerTurn);
+    }
+
     Vector2 mousePosition = GetMousePosition();
     hoveredTile.x = -1;
     hoveredTile.y = -1;
@@ -430,4 +451,20 @@ Vector2 findBestMove(Tile board[3][3])
     }
 
     return bestMove;
+}
+
+static bool MakeAIMove(int playerTurn)
+{
+    Vector2 bestMove = findBestMove(tile);
+    int i = (int) bestMove.x;
+    int j = (int) bestMove.y;
+
+    if (i != -1 && j != -1 && tile[i][j].playerIndex == -1)
+    {
+        tile[i][j].playerIndex = playerTurn;
+        tile[i][j].color = player[playerTurn].isBlueTeam ? BLUE : RED;
+        return true;
+    }
+
+    return false;
 }
