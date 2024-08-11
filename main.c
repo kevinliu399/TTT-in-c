@@ -1,7 +1,7 @@
 #include "raylib.h"
 #include <stdbool.h>
 #include <string.h>
-#include <math.h>
+#include <limits.h>
 
 #define ROW 3
 #define COL 3
@@ -12,6 +12,7 @@
 #define HEADER_BUTTON_HEIGHT 40
 #define max(A, B) ((A) > (B) ? (A) : (B))
 #define min(A, B) ((A) < (B) ? (A) : (B))
+#define INFINITY INT_MAX
 
 /************************
  * Types and definition *
@@ -49,7 +50,6 @@ static const int gameBoardHeight = 450;
 
 static bool gameOver = false;
 static int currentPlayer = 0; // blue team starts
-static int totalMoves = 0;    // if we reach the total moves, then the game is over
 static bool AiPlaying = false;
 enum Score score;
 
@@ -118,12 +118,11 @@ void UpdateGame(void)
         {
 
             // game ends if all tiles are filled or if someone wins
-            if (totalMoves == MAX_TILES - 1 || checkWin())
+            if (checkWin())
             {
                 gameOver = true;
             }
 
-            totalMoves++; // one turn
             currentPlayer = (currentPlayer + 1) % MAX_PLAYERS;
         }
     }
@@ -133,7 +132,6 @@ void UpdateGame(void)
         {
             InitGame();
             gameOver = false;
-            totalMoves = 0;
         }
     }
 
@@ -141,8 +139,9 @@ void UpdateGame(void)
         AiPlaying = !AiPlaying;
         InitGame();
         gameOver = false;
-        totalMoves = 0;
         currentPlayer = 0;
+        player[0].hasWon = false;
+        player[1].hasWon = false;
     }
 }
 
@@ -310,7 +309,23 @@ static bool checkWin(void)
         }
     }
 
-    return false;
+    // Check for tie
+    bool isTie = true;
+    for (int i = 0; i < ROW; i++)
+    {
+        for (int j = 0; j < COL; j++)
+        {
+            if (tile[i][j].playerIndex == -1)
+            {
+                isTie = false;
+                break;
+            }
+        }
+        if (!isTie) break;
+    }
+    
+    if (isTie) return true;
+    else return false;
 }
 
 static bool UpdatePlayer(int playerTurn)
