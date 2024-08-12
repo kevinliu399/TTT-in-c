@@ -70,7 +70,7 @@ static void UpdateDrawFrame(void);
 static void InitPlayers(void);
 static bool UpdatePlayer(int playerTurn);
 static void InitBoard(void);
-static bool checkWin(void);
+static int checkWin(void);
 
 Vector2 findBestMove(Tile board[3][3]);
 int minimax(Tile board[3][3], int depth, bool isMaximizing);
@@ -99,7 +99,6 @@ int main(void)
 
 void InitGame(void)
 {
-
     InitBoard();
     InitPlayers();
 
@@ -108,6 +107,15 @@ void InitGame(void)
         10,
         HEADER_BUTTON_WIDTH,
         HEADER_BUTTON_HEIGHT};
+
+    if (AiPlaying)
+    {
+        currentPlayer = GetRandomValue(0, 1);
+    }
+    else
+    {
+        currentPlayer = 0;
+    }
 }
 
 void UpdateGame(void)
@@ -116,13 +124,15 @@ void UpdateGame(void)
     {
         if (UpdatePlayer(currentPlayer))
         {
-
-            // game ends if all tiles are filled or if someone wins
-            if (checkWin())
+            int winner = checkWin();
+            if (winner != -1)
             {
                 gameOver = true;
+                if (winner >= 0 && winner < MAX_PLAYERS)
+                {
+                    player[winner].hasWon = true;
+                }
             }
-
             currentPlayer = (currentPlayer + 1) % MAX_PLAYERS;
         }
     }
@@ -139,7 +149,7 @@ void UpdateGame(void)
         AiPlaying = !AiPlaying;
         InitGame();
         gameOver = false;
-        currentPlayer = 0;
+        currentPlayer = GetRandomValue(0, 1); // Randomize starting player
         player[0].hasWon = false;
         player[1].hasWon = false;
     }
@@ -272,7 +282,7 @@ static void InitBoard(void)
     }
 }
 
-static bool checkWin(void)
+static int checkWin(void)
 {
     // check horizontally
     for (int i = 0; i < ROW; i++)
@@ -281,8 +291,7 @@ static bool checkWin(void)
             tile[i][0].playerIndex == tile[i][1].playerIndex &&
             tile[i][0].playerIndex == tile[i][2].playerIndex)
         {
-            player[tile[i][0].playerIndex].hasWon = true;
-            return true;
+            return tile[i][0].playerIndex;
         }
     }
 
@@ -293,8 +302,7 @@ static bool checkWin(void)
             tile[0][i].playerIndex == tile[1][i].playerIndex &&
             tile[0][i].playerIndex == tile[2][i].playerIndex)
         {
-            player[tile[0][i].playerIndex].hasWon = true;
-            return true;
+            return tile[0][i].playerIndex;
         }
     }
 
@@ -304,8 +312,7 @@ static bool checkWin(void)
         if ((tile[0][0].playerIndex == tile[1][1].playerIndex && tile[1][1].playerIndex == tile[2][2].playerIndex) ||
             (tile[0][2].playerIndex == tile[1][1].playerIndex && tile[1][1].playerIndex == tile[2][0].playerIndex))
         {
-            player[tile[1][1].playerIndex].hasWon = true;
-            return true;
+            return tile[1][1].playerIndex;
         }
     }
 
@@ -324,8 +331,8 @@ static bool checkWin(void)
         if (!isTie) break;
     }
     
-    if (isTie) return true;
-    else return false;
+    if (isTie) return -2;
+    else return -1;
 }
 
 static bool UpdatePlayer(int playerTurn)
@@ -375,31 +382,16 @@ int minimax(Tile board[3][3], int depth, bool isMaximizing)
 {
 
     // Terminal State
-    if (checkWin())
+    int winner = checkWin();
+    if (winner != -1)
     {
-        if (player[0].hasWon)
-            return -10 + depth; // Human wins
-        if (player[1].hasWon)
+        if (winner == 1)
             return 10 - depth; // AI wins
+        else if (winner == 0)
+            return depth - 10; // Human wins
+        else
+            return 0; // Tie
     }
-
-    bool isDraw = true;
-    for (int i = 0; i < ROW; i++)
-    {
-        for (int j = 0; j < COL; j++)
-        {
-            if (board[i][j].playerIndex == -1)
-            {
-                isDraw = false;
-                break;
-            }
-        }
-        if (!isDraw)
-            break;
-    }
-
-    if (isDraw)
-        return 0;
 
     if (isMaximizing)
     {
