@@ -145,7 +145,8 @@ void UpdateGame(void)
         }
     }
 
-    if (CheckCollisionPointRec(GetMousePosition(), headerButton)) {
+    if (CheckCollisionPointRec(GetMousePosition(), headerButton))
+    {
         AiPlaying = !AiPlaying;
         InitGame();
         gameOver = false;
@@ -171,9 +172,12 @@ static void DrawGame(void)
     DrawRectangleRec(headerButton, GRAY);
     DrawText("AI", headerButton.x + 10, headerButton.y + 10, 20, BLACK);
 
-    if (AiPlaying) {
+    if (AiPlaying)
+    {
         DrawRectangleLinesEx(headerButton, 2, GOLD);
-    } else {
+    }
+    else
+    {
         DrawRectangleLinesEx(headerButton, 2, BLACK);
     }
 
@@ -252,15 +256,13 @@ static void InitPlayers(void)
         .isBlueTeam = true,
         .hasWon = false,
         .profile = (Rectangle){margin, margin, squareSize, squareSize},
-        .isAI = false
-    };
-    
+        .isAI = false};
+
     player[1] = (Player){
         .isBlueTeam = false,
         .hasWon = false,
         .profile = (Rectangle){margin + squareSize + margin, margin, squareSize, squareSize},
-        .isAI = AiPlaying
-    };
+        .isAI = AiPlaying};
 }
 
 static void InitBoard(void)
@@ -328,11 +330,14 @@ static int checkWin(void)
                 break;
             }
         }
-        if (!isTie) break;
+        if (!isTie)
+            break;
     }
-    
-    if (isTie) return -2;
-    else return -1;
+
+    if (isTie)
+        return -2;
+    else
+        return -1;
 }
 
 static bool UpdatePlayer(int playerTurn)
@@ -463,8 +468,8 @@ Vector2 findBestMove(Tile board[3][3])
 static bool MakeAIMove(int playerTurn)
 {
     Vector2 bestMove = findBestMove(tile);
-    int i = (int) bestMove.x;
-    int j = (int) bestMove.y;
+    int i = (int)bestMove.x;
+    int j = (int)bestMove.y;
 
     if (i != -1 && j != -1 && tile[i][j].playerIndex == -1)
     {
